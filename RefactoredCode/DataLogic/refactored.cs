@@ -106,6 +106,7 @@ namespace backend.Data
             }
         }
 
+            
         //private function that maps company name to the id
         private IDictionary<string, string> GetCompanyNameToIdMap(MySqlConnection connection)
         {
