@@ -10,6 +10,18 @@ namespace backend.Data
     public class FileUploadScreenContext
     {
 
+        private string fileFolder = "files";
+        private string contentSplit = "base64,";
+        private string dataBaseName = "DOCUMENT_MANAGEMENT";
+        private string connectionString = "server=localhost;userid=root;password=fathimaadmin;database=";
+        private string trainingCommand = "select * from DOCUMENT_MANAGEMENT.training";
+        private string companyCommand = "select * from DOCUMENT_MANAGEMENT.company";
+        private string insertToDataTable = "INSERT INTO DOCUMENT_MANAGEMENT.trainingdetails_data(`Training_index`,`Filepath`,`minimum_version`,`file_name`) values(";
+        private string insertToHeaderTable = "INSERT INTO DOCUMENT_MANAGEMENT.trainingdetails_header(`Company_ID`,`Version`,`Training_ID`) values(";
+        private string getIndexCmd = "select training_index from DOCUMENT_MANAGEMENT.trainingdetails_header where training_id =";
+        private string companyId = "company_id";
+        private string equals = "=";
+        private string and = "and";
         IWebHostEnvironment environment;
         public FileUploadScreenContext(IWebHostEnvironment environment)
         {
@@ -19,14 +31,14 @@ namespace backend.Data
         private string FilePath(String fileName)
         {
             string webRootPath = environment.WebRootPath;
-            string filesPath = Path.Combine(webRootPath, "files");
+            string filesPath = Path.Combine(webRootPath, fileFolder);
             string fileNamesave = $"{Path.GetFileNameWithoutExtension(FileName)}_{Guid.NewGuid().ToString()}{Path.GetExtension(FileName)}";
             string path = filesPath + "\\" + fileNamesave;
             return path;
         }
         public void SaveFileInServer(string fileContent, string filePath)
         {
-            String[] contents = FileContent.Split("base64,");
+            String[] contents = FileContent.Split(contentSplit);
             byte[] data = Convert.FromBase64String(contents[1]);
             using (System.IO.FileStream stream = System.IO.File.Create(path))
             {
@@ -35,13 +47,13 @@ namespace backend.Data
         }
         private int GetTrainingIndex(FileModel model)
         {
-            string cs = $"server=localhost;userid=root;password=fathimaadmin;database=DOCUMENT_MANAGEMENT";
-            MySqlConnection connection = new MySqlConnection(cs);
+
+            MySqlConnection connection = new MySqlConnection(connectionString + dataBaseName);
             connection.Open();
             IDictionary<string, string> companyMap = GetCompanyNameToIdMap(connection);
             IDictionary<string, string> trainingMap = GetTrainingNameToIdMap(connection);
 
-            var trainingindexCommand = $"select training_index from DOCUMENT_MANAGEMENT.trainingdetails_header where training_id ={trainingMap[model.Training.ToUpper()]} and company_id = {companyMap[model.Company.ToUpper()]} and version={model.Version}";
+            var trainingindexCommand = $"{getIndexCmd}{trainingMap[model.Training.ToUpper()]}{and} {companyId} {equals} {companyMap[model.Company.ToUpper()]}{ and} {version}{equals}{model.Version}";
 
             int trainingindex = -1;
 
@@ -61,7 +73,7 @@ namespace backend.Data
         private void FileUploadToDataTable(FileModel model, int trainingIndex)
         {
             //connection
-            var uploadatindexCommand = $"INSERT INTO DOCUMENT_MANAGEMENT.trainingdetails_data(`Training_index`,`Filepath`,`minimum_version`,`file_name`) values({ trainingIndex} ,{path},{model.MinVersion},{ model.FileName})";
+            var uploadatindexCommand = $"{insertToDataTable}{ trainingIndex} ,{path},{model.MinVersion},{ model.FileName})";
             using var insertTrainingData = new MySqlCommand(uploadatindexCommand, connection);
             insertTrainingData.ExecuteNonQuery();
         }
@@ -70,7 +82,7 @@ namespace backend.Data
             var companyId = companyMap[model.Company.ToUpper()];
             var trainingId = trainingMap[model.Training.ToUpper()];
 
-            var uploadHeader = $" INSERT INTO DOCUMENT_MANAGEMENT.trainingdetails_header(`Company_ID`,`Version`,`Training_ID`) values({companyId},{ model.Version} ,{ trainingId })";
+            var uploadHeader = $"{insertToHeaderTable}{companyId},{ model.Version} ,{ trainingId })";
             var indexReadBack = -1;
             using var insertTrainingHeaderCommand = new MySqlCommand(uploadHeader, connection);
             insertTrainingHeaderCommand.ExecuteNonQuery();
@@ -100,7 +112,7 @@ namespace backend.Data
             IDictionary<string, string> companyMap = new Dictionary<string, string>();
             using (MySqlCommand readAllCompaniesCommand = connection.CreateCommand())
             {
-                readAllCompaniesCommand.CommandText = $"select * from DOCUMENT_MANAGEMENT.company";
+                readAllCompaniesCommand.CommandText = companyCommand;
                 using (var reader = readAllCompaniesCommand.ExecuteReader())
                 {
                     while (reader.Read())
@@ -120,7 +132,7 @@ namespace backend.Data
             IDictionary<string, string> trainingMap = new Dictionary<string, string>();
             using (MySqlCommand readAllTrainingCommand = connection.CreateCommand())
             {
-                readAllTrainingCommand.CommandText = $"select * from DOCUMENT_MANAGEMENT.training";
+                readAllTrainingCommand.CommandText = trainingCommand;
                 using (var reader = readAllTrainingCommand.ExecuteReader())
                 {
                     while (reader.Read())
